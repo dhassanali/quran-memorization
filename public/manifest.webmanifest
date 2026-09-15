@@ -1,0 +1,11 @@
+{
+  "name": "Hifz Journey",
+  "short_name": "Hifz Journey",
+  "description": "An offline-first Quran memorization companion.",
+  "start_url": "/quran-memorization/",
+  "scope": "/quran-memorization/",
+  "display": "standalone",
+  "background_color": "#fafaf9",
+  "theme_color": "#0f5c4c",
+  "icons": []
+}
