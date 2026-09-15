@@ -1,0 +1,15 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Libre+Baskerville:wght@700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base { body { margin: 0; font-family: 'DM Sans', sans-serif; } h1 { font-family: 'Libre Baskerville', serif; } button, input { font: inherit; } }
+@layer components {
+  .card { @apply rounded-2xl border border-stone-200 bg-white p-5 shadow-sm; }
+  .label { @apply text-xs font-semibold uppercase tracking-[.15em] text-stone-500; }
+  .metric { @apply mt-2 text-4xl font-semibold text-emerald-900; }
+  .field { @apply min-w-0 rounded-lg border border-stone-300 bg-white px-3 py-2 text-stone-900 outline-none transition focus:border-emerald-700 focus:ring-2 focus:ring-emerald-100; }
+  .primary { @apply rounded-lg bg-emerald-800 px-4 py-2 font-medium text-white transition hover:bg-emerald-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2; }
+  .rating { @apply flex min-h-14 flex-col items-center justify-center rounded-lg border border-stone-200 bg-stone-50 text-xs text-stone-600 transition hover:border-emerald-500 hover:bg-emerald-50 focus:outline-none focus:ring-2 focus:ring-emerald-500; }
+  .rating b { @apply text-base text-emerald-900; }
+}
