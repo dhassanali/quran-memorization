@@ -1,87 +1,37 @@
 import { useEffect, useMemo, useState } from 'react'
 import db, { type MemorizedPage } from './db'
 import { addDays, localDate, nextInterval, TOTAL_PAGES } from './srs'
+import { concealArabicLetters, getPageBounds, type PageBounds } from './quran'
 
 type View = 'home' | 'reviews' | 'pages'
+type Language = 'ar' | 'en'
 
-const ratings = [
-  { value: 5, label: 'متقن', hint: 'ممتاز، انتقل لفترة أطول', tone: 'emerald' },
-  { value: 4, label: 'جيّد', hint: 'مع تردد بسيط', tone: 'teal' },
-  { value: 3, label: 'متوسط', hint: 'يحتاج إلى تدريب', tone: 'amber' },
-  { value: 2, label: 'ضعيف', hint: 'راجعه غدًا', tone: 'orange' },
-  { value: 1, label: 'صعب', hint: 'ابدأ من جديد غدًا', tone: 'rose' },
-]
+const copy = {
+  ar: { app: 'حِفظ', journey: 'رحلة الحفظ', offline: 'يعمل دون اتصال', home: 'الرئيسية', reviews: 'المراجعة', pages: 'رحلتي', next: 'خطوتك التالية', due: 'لديك مراجعات تنتظرك', clear: 'أتممت مراجعات اليوم', dueBody: 'ابدأ بالمراجعة قبل الحفظ الجديد؛ دقائق اليوم تصنع حفظًا راسخًا.', clearBody: 'حان وقت صفحة جديدة. حافظ على وتيرتك الهادئة.', startReview: 'ابدأ المراجعة', addPage: 'ابدأ صفحة اليوم', daily: 'مراجعات اليوم', goal: 'حفظ اليوم', journeyTotal: 'رحلتك الكلية', waiting: 'صفحات تنتظر التثبيت', noWaiting: 'لا توجد مراجعات معلّقة', remaining: 'متبقٍ اليوم', complete: 'أنجزت هدف اليوم، بارك الله فيك', newTitle: 'صفحتك التالية', newBody: 'صفحة واحدة في كل مرة. تظهر الصفحة التالية تلقائيًا غدًا بعد إتمام هدف اليوم.', addNext: 'أضف إلى خطة اليوم', limit: 'اكتمل هدف اليوم', reviewTime: 'وقت التثبيت', reviewTitle: 'راجع ثم قيّم تسميعك', noReview: 'لا مراجعات الآن', noReviewBody: 'عندما يحين الموعد ستظهر الصفحة هنا.', back: 'العودة للرئيسية', reviewPrompt: 'كيف كان تسميعك؟', wordsOnly: 'وضع الكلمات فقط', wordsHint: 'أخفِ الحروف لتختبر استدعاءك، مع بقاء شكل الكلمات.', start: 'بداية الصفحة', end: 'نهاية الصفحة', library: 'مكتبتك', libraryTitle: 'صفحات الحفظ', page: 'الصفحة', dueToday: 'مستحقة اليوم', scheduled: 'موعدها', reviewsCount: 'مراجعات', days: 'أيام', day: 'يوم', excellent: 'متقن', good: 'جيّد', fair: 'متوسط', weak: 'ضعيف', hard: 'صعب', added: 'أُضيفت الصفحة إلى خطة اليوم. راجعها الآن لتثبيت الحفظ.', nextDue: 'موعدك القادم', settings: 'هدفك اليومي', language: 'English' },
+  en: { app: 'Hifz', journey: 'Memorization journey', offline: 'Works offline', home: 'Home', reviews: 'Review', pages: 'My journey', next: 'Your next step', due: 'You have reviews waiting', clear: 'Today’s reviews are complete', dueBody: 'Review before new memorization. A few minutes today build lasting recall.', clearBody: 'It is time for a new page. Keep your calm rhythm.', startReview: 'Start review', addPage: 'Start today’s page', daily: 'Reviews today', goal: 'Today’s hifz', journeyTotal: 'Your full journey', waiting: 'Pages to strengthen', noWaiting: 'No pending reviews', remaining: 'remaining today', complete: 'Daily goal complete. MashaAllah!', newTitle: 'Your next page', newBody: 'One page at a time. The next page becomes available automatically tomorrow after you finish today’s goal.', addNext: 'Add to today’s plan', limit: 'Today’s goal is complete', reviewTime: 'Strengthen recall', reviewTitle: 'Review, then rate your recitation', noReview: 'No reviews right now', noReviewBody: 'A page will appear here when it is due.', back: 'Back home', reviewPrompt: 'How was your recitation?', wordsOnly: 'Words-only mode', wordsHint: 'Hide the letters to test recall while preserving each word’s shape.', start: 'Page begins', end: 'Page ends', library: 'Your library', libraryTitle: 'Memorized pages', page: 'Page', dueToday: 'Due today', scheduled: 'Scheduled', reviewsCount: 'reviews', days: 'days', day: 'day', excellent: 'Excellent', good: 'Good', fair: 'Fair', weak: 'Needs work', hard: 'Hard', added: 'Page added to today’s plan. Review it now to strengthen it.', nextDue: 'Your next review', settings: 'Daily goal', language: 'العربية' },
+} as const
 
 const arabicNumber = new Intl.NumberFormat('ar')
-const formatNumber = (value: number) => arabicNumber.format(value)
-const formatDate = (date: string) => new Intl.DateTimeFormat('ar', { day: 'numeric', month: 'long' }).format(new Date(`${date}T12:00:00`))
-
 function App() {
-  const [pages, setPages] = useState<MemorizedPage[]>([])
-  const [target, setTarget] = useState(2)
-  const [newPage, setNewPage] = useState('')
-  const [notice, setNotice] = useState('')
-  const [view, setView] = useState<View>('home')
-  const today = localDate()
-
+  const [pages, setPages] = useState<MemorizedPage[]>([]); const [target, setTarget] = useState(2); const [notice, setNotice] = useState(''); const [view, setView] = useState<View>('home'); const [language, setLanguage] = useState<Language>('ar'); const [bounds, setBounds] = useState<Record<number, PageBounds>>({}); const [masked, setMasked] = useState<Record<number, boolean>>({})
+  const today = localDate(); const t = copy[language]; const number = (value: number) => language === 'ar' ? arabicNumber.format(value) : String(value); const date = (value: string) => new Intl.DateTimeFormat(language, { day: 'numeric', month: 'short' }).format(new Date(`${value}T12:00:00`))
   const refresh = async () => setPages(await db.pages.orderBy('page').toArray())
-  useEffect(() => { void (async () => { const setting = await db.settings.get('dailyTarget'); if (setting) setTarget(setting.value); await refresh() })() }, [])
-
-  const due = useMemo(() => pages.filter((item) => item.dueDate <= today).sort((a, b) => a.dueDate.localeCompare(b.dueDate)), [pages, today])
-  const learnedToday = useMemo(() => pages.filter((item) => item.addedAt === today).length, [pages, today])
-  const nextPage = useMemo(() => Array.from({ length: TOTAL_PAGES }, (_, index) => index + 1).find((page) => !pages.some((item) => item.page === page)), [pages])
-  const progress = Math.round((pages.length / TOTAL_PAGES) * 100)
-  const remainingTarget = Math.max(0, target - learnedToday)
-
-  async function addPage(event: React.FormEvent) {
-    event.preventDefault()
-    const page = Number(newPage)
-    if (!Number.isInteger(page) || page < 1 || page > TOTAL_PAGES) return setNotice('اختر رقم صفحة بين ١ و٦٠٤.')
-    if (await db.pages.get(page)) return setNotice(`الصفحة ${formatNumber(page)} موجودة بالفعل في رحلتك.`)
-    await db.pages.add({ page, addedAt: today, dueDate: today, interval: 1, repetitions: 0 })
-    setNewPage(''); setNotice(`أُضيفت الصفحة ${formatNumber(page)}. راجعها الآن لتثبيت الحفظ.`); await refresh()
-  }
-
-  async function review(item: MemorizedPage, rating: number) {
-    const interval = nextInterval(item.interval, rating)
-    await db.pages.update(item.page, { interval, dueDate: addDays(today, interval), lastReviewedAt: today, repetitions: item.repetitions + 1 })
-    setNotice(`أحسنت! موعد الصفحة ${formatNumber(item.page)} القادم هو ${formatDate(addDays(today, interval))}.`)
-    await refresh()
-  }
-
-  async function saveTarget(value: number) {
-    const next = Math.max(1, Math.min(20, value || 1))
-    setTarget(next); await db.settings.put({ key: 'dailyTarget', value: next })
-  }
-
-  function startAdding() { setView('home'); window.setTimeout(() => document.getElementById('add-page')?.focus(), 0) }
-
-  return <main className="min-h-screen bg-[#f7f8f4] text-slate-800">
-    <header className="hero-shell">
-      <div className="mx-auto max-w-6xl px-5 pb-8 pt-5 sm:px-8">
-        <div className="flex items-center justify-between text-sm text-emerald-50/85"><span className="flex items-center gap-2"><i className="online-dot" /> يعمل دون اتصال</span><span>{formatDate(today)}</span></div>
-        <div className="mt-9 flex flex-wrap items-end justify-between gap-5"><div><p className="eyebrow text-emerald-200">رحلة الحفظ</p><h1 className="mt-2 text-4xl font-bold tracking-tight text-white sm:text-5xl">حِفظي</h1><p className="mt-3 max-w-md text-emerald-50/80">رفيق هادئ يساعدك على تثبيت ما حفظت، صفحةً بعد صفحة.</p></div><div className="ayah-mark" aria-hidden="true">۝</div></div>
-      </div>
-    </header>
-
-    <nav className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 backdrop-blur" aria-label="التنقل الرئيسي"><div className="mx-auto flex max-w-6xl gap-1 px-4 sm:px-7">{([{ id: 'home', label: 'الرئيسية' }, { id: 'reviews', label: `المراجعات${due.length ? ` (${formatNumber(due.length)})` : ''}` }, { id: 'pages', label: 'صفحاتي' }] as { id: View, label: string }[]).map((item) => <button key={item.id} onClick={() => setView(item.id)} className={`nav-item ${view === item.id ? 'nav-item-active' : ''}`}>{item.label}</button>)}</div></nav>
-
-    <div className="mx-auto max-w-6xl space-y-7 px-5 py-7 sm:px-8 sm:py-10">
-      {notice && <div className="notice" role="status"><span>✦</span><p>{notice}</p><button onClick={() => setNotice('')} aria-label="إغلاق التنبيه">×</button></div>}
-
-      {view === 'home' && <>
-        <section className="welcome-card"><div><p className="eyebrow text-emerald-700">خطوتك التالية</p><h2 className="mt-2 text-2xl font-bold text-slate-900">{due.length ? `لديك ${formatNumber(due.length)} ${due.length === 1 ? 'مراجعة' : 'مراجعات'} تنتظرك` : 'أتممت مراجعات اليوم'}</h2><p className="mt-2 text-slate-600">{due.length ? 'ابدأ بالأقدم موعدًا؛ دقائق قليلة اليوم تصنع حفظًا راسخًا.' : 'خذ نفسًا، ثم أضف صفحة جديدة حين تصبح مستعدًا.'}</p></div><button onClick={() => due.length ? setView('reviews') : startAdding()} className="primary primary-large">{due.length ? 'ابدأ المراجعة ←' : 'أضف صفحة جديدة +'}</button></section>
-
-        <section className="grid gap-4 sm:grid-cols-3"><article className="stat-card"><span className="stat-icon">◷</span><p>مراجعات اليوم</p><strong>{formatNumber(due.length)}</strong><small>{due.length ? 'صفحات بحاجة لتثبيت' : 'لا توجد مراجعات معلّقة'}</small></article><article className="stat-card"><span className="stat-icon">✦</span><p>هدف الحفظ</p><strong>{formatNumber(learnedToday)} <em>/ {formatNumber(target)}</em></strong><small>{remainingTarget ? `متبقّي ${formatNumber(remainingTarget)} ${remainingTarget === 1 ? 'صفحة' : 'صفحات'}` : 'أنجزت هدف اليوم، بارك الله فيك'}</small></article><article className="stat-card"><span className="stat-icon">⌁</span><p>رحلتك الكلية</p><strong>{formatNumber(pages.length)} <em>/ ٦٠٤</em></strong><div className="progress-track" aria-label={`${progress}% من القرآن`}><div style={{ width: `${progress}%` }} /></div><small>{formatNumber(progress)}٪ مكتمل</small></article></section>
-
-        <section className="grid gap-5 lg:grid-cols-[1.35fr_.85fr]"><form onSubmit={addPage} className="panel"><div className="panel-heading"><div><p className="eyebrow text-emerald-700">حفظ جديد</p><h2>أضف صفحة إلى رحلتك</h2></div><span className="page-badge">١ — ٦٠٤</span></div><p className="mt-2 text-sm leading-6 text-slate-600">ستحصل كل صفحة على جدول مراجعة مستقل يبدأ اليوم.</p><div className="mt-5 flex flex-col gap-3 sm:flex-row"><input id="add-page" aria-label="رقم صفحة القرآن" value={newPage} onChange={(event) => setNewPage(event.target.value)} inputMode="numeric" placeholder={nextPage ? `مثال: الصفحة ${formatNumber(nextPage)}` : 'رقم الصفحة'} className="field flex-1" /><button className="primary">إضافة الصفحة</button></div></form><aside className="panel target-panel"><p className="eyebrow text-emerald-700">تخصيص يومك</p><h2 className="mt-1">هدف الحفظ اليومي</h2><div className="mt-5 flex items-center gap-3"><button className="stepper" onClick={() => void saveTarget(target - 1)} type="button" aria-label="تقليل الهدف">−</button><output className="target-value">{formatNumber(target)}<small> صفحات</small></output><button className="stepper" onClick={() => void saveTarget(target + 1)} type="button" aria-label="زيادة الهدف">+</button></div><p className="mt-4 text-sm text-slate-500">يمكنك اختيار ما بين صفحة واحدة و٢٠ صفحة.</p></aside></section>
-      </>}
-
-      {view === 'reviews' && <section className="panel"><div className="panel-heading"><div><p className="eyebrow text-emerald-700">وقت التثبيت</p><h2>مراجعات اليوم</h2></div><span className="page-badge">{formatNumber(due.length)} مستحق</span></div>{due.length === 0 ? <div className="empty-state"><span>✓</span><h3>لا شيء للمراجعة الآن</h3><p>حين يحين موعد صفحة، ستظهر هنا لتقييم تسميعك.</p><button className="primary" onClick={() => setView('home')}>العودة للرئيسية</button></div> : <div className="mt-6 space-y-4">{due.map((item, index) => <article key={item.page} className="review-card"><div className="review-meta"><span className="review-number">{formatNumber(index + 1)}</span><div><h3>الصفحة {formatNumber(item.page)}</h3><p>آخر فترة: {formatNumber(item.interval)} {item.interval === 1 ? 'يوم' : 'أيام'} · {formatNumber(item.repetitions)} مراجعات</p></div><span className="due-label">مستحقة {item.dueDate === today ? 'اليوم' : formatDate(item.dueDate)}</span></div><fieldset><legend>كيف كان تسميعك؟</legend><div className="rating-grid">{ratings.map((rating) => <button key={rating.value} className={`rating rating-${rating.tone}`} onClick={() => void review(item, rating.value)} title={rating.hint}><b>{formatNumber(rating.value)}</b><span>{rating.label}</span><small>{rating.hint}</small></button>)}</div></fieldset></article>)}</div>}</section>}
-
-      {view === 'pages' && <section className="panel"><div className="panel-heading"><div><p className="eyebrow text-emerald-700">مكتبتك</p><h2>الصفحات المحفوظة</h2></div><span className="page-badge">{formatNumber(pages.length)} صفحة</span></div>{pages.length === 0 ? <div className="empty-state"><span>۝</span><h3>لم تضف صفحاتك بعد</h3><p>ابدأ بأول صفحة حفظتها، وسنتابع مواعيد مراجعتها.</p><button className="primary" onClick={() => startAdding()}>إضافة صفحة</button></div> : <div className="page-list">{pages.map((item) => <article key={item.page}><strong>{formatNumber(item.page)}</strong><div><h3>الصفحة {formatNumber(item.page)}</h3><p>{item.dueDate <= today ? 'مستحقة للمراجعة' : `موعدها ${formatDate(item.dueDate)}`}</p></div><span>{formatNumber(item.interval)} {item.interval === 1 ? 'يوم' : 'أيام'}</span></article>)}</div>}</section>}
-    </div>
-  </main>
+  useEffect(() => { void (async () => { const targetSetting = await db.settings.get('dailyTarget'); const languageSetting = await db.settings.get('language'); if (typeof targetSetting?.value === 'number') setTarget(targetSetting.value); if (languageSetting?.value === 'en') setLanguage('en'); await refresh() })() }, [])
+  const due = useMemo(() => pages.filter(item => item.dueDate <= today).sort((a, b) => a.dueDate.localeCompare(b.dueDate)), [pages, today]); const learnedToday = pages.filter(item => item.addedAt === today).length; const nextPage = useMemo(() => Array.from({ length: TOTAL_PAGES }, (_, index) => index + 1).find(page => !pages.some(item => item.page === page)), [pages]); const progress = Math.round((pages.length / TOTAL_PAGES) * 100); const canAdd = learnedToday < target && !!nextPage
+  useEffect(() => { if (view !== 'reviews') return; void Promise.all(due.map(async item => { if (!bounds[item.page]) { const itemBounds = await getPageBounds(item.page, language); setBounds(previous => ({ ...previous, [item.page]: itemBounds })) } })) }, [view, due, language, bounds])
+  async function addNextPage() { if (!nextPage || !canAdd) return; await db.pages.add({ page: nextPage, addedAt: today, dueDate: today, interval: 1, repetitions: 0 }); setNotice(`${t.added} ${t.page} ${number(nextPage)}.`); await refresh() }
+  async function review(item: MemorizedPage, rating: number) { const interval = nextInterval(item.interval, rating); const nextDate = addDays(today, interval); await db.pages.update(item.page, { interval, dueDate: nextDate, lastReviewedAt: today, repetitions: item.repetitions + 1 }); setNotice(`${t.nextDue}: ${date(nextDate)}.`); await refresh() }
+  async function saveTarget(value: number) { const next = Math.max(1, Math.min(20, value || 1)); setTarget(next); await db.settings.put({ key: 'dailyTarget', value: next }) }
+  async function toggleLanguage() { const next: Language = language === 'ar' ? 'en' : 'ar'; setLanguage(next); await db.settings.put({ key: 'language', value: next }) }
+  const ratingLabels = [t.hard, t.weak, t.fair, t.good, t.excellent]
+  return <main className="app-shell" dir={language === 'ar' ? 'rtl' : 'ltr'} lang={language}>
+    <header className="hero-shell"><div className="shell-content"><div className="topline"><span><i className="online-dot" /> {t.offline}</span><button className="language-toggle" onClick={() => void toggleLanguage()}>{t.language}</button></div><div className="brand-row"><div className="brand-lockup"><div className="logo" aria-label={t.app}><span>ح</span><i>⌁</i></div><div><p className="eyebrow">{t.journey}</p><h1>{t.app}</h1></div></div><p className="hero-copy">{language === 'ar' ? 'رفيقك الهادئ لحفظ القرآن ومراجعته، صفحةً بعد صفحة.' : 'A calm companion for memorizing and reviewing Qur’an, one page at a time.'}</p></div></div></header>
+    <nav className="main-nav"><div className="shell-content nav-inner">{([{ id: 'home', label: t.home }, { id: 'reviews', label: `${t.reviews}${due.length ? ` · ${number(due.length)}` : ''}` }, { id: 'pages', label: t.pages }] as {id: View, label: string}[]).map(item => <button key={item.id} onClick={() => setView(item.id)} className={`nav-item ${view === item.id ? 'nav-item-active' : ''}`}>{item.label}</button>)}</div></nav>
+    <div className="shell-content content">{notice && <div className="notice" role="status"><span>✦</span><p>{notice}</p><button onClick={() => setNotice('')} aria-label="Dismiss">×</button></div>}
+      {view === 'home' && <><section className="next-card"><div><p className="eyebrow">{t.next}</p><h2>{due.length ? `${t.due} · ${number(due.length)}` : t.clear}</h2><p>{due.length ? t.dueBody : t.clearBody}</p></div><button className="primary primary-large" onClick={() => due.length ? setView('reviews') : void addNextPage()} disabled={!due.length && !canAdd}>{due.length ? t.startReview : (canAdd ? t.addPage : t.limit)}</button></section><section className="stat-grid"><Stat icon="◷" label={t.daily} value={number(due.length)} detail={due.length ? t.waiting : t.noWaiting} /><Stat icon="✦" label={t.goal} value={`${number(learnedToday)} / ${number(target)}`} detail={learnedToday < target ? `${number(target - learnedToday)} ${t.remaining}` : t.complete} /><article className="stat-card"><span className="stat-icon">⌁</span><p>{t.journeyTotal}</p><strong>{number(pages.length)} <em>/ {number(TOTAL_PAGES)}</em></strong><div className="progress-track"><div style={{ width: `${progress}%` }} /></div><small>{progress}%</small></article></section><section className="two-column"><article className="panel new-page-card"><p className="eyebrow">{t.journey}</p><h2>{t.newTitle}</h2><div className="next-page-number">{nextPage ? number(nextPage) : '✓'}</div><p>{t.newBody}</p><button className="primary" disabled={!canAdd} onClick={() => void addNextPage()}>{canAdd ? t.addNext : t.limit}</button></article><aside className="panel goal-panel"><p className="eyebrow">{t.settings}</p><h2>{t.goal}</h2><div className="goal-controls"><button onClick={() => void saveTarget(target - 1)} aria-label="Decrease">−</button><output>{number(target)}<small> {t.pages}</small></output><button onClick={() => void saveTarget(target + 1)} aria-label="Increase">+</button></div></aside></section></>}
+      {view === 'reviews' && <section className="panel"><div className="section-heading"><div><p className="eyebrow">{t.reviewTime}</p><h2>{t.reviewTitle}</h2></div><span className="pill">{number(due.length)}</span></div>{!due.length ? <Empty t={t} onClick={() => setView('home')} /> : <div className="review-stack">{due.map(item => { const pageBounds = bounds[item.page]; return <article className="mushaf-review" key={item.page}><div className="mushaf-top"><span>{t.page} {number(item.page)}</span><span>{t.start}: <b>{pageBounds?.start ?? '…'}</b></span><span>{t.end}: <b>{pageBounds?.end ?? '…'}</b></span></div><div className="mushaf-center"><p>{t.wordsOnly}</p><button className={`mask-switch ${masked[item.page] ? 'on' : ''}`} onClick={() => setMasked(previous => ({ ...previous, [item.page]: !previous[item.page] }))} aria-pressed={!!masked[item.page]}><i /></button><small>{t.wordsHint}</small><div className="practice-words">{masked[item.page] ? concealArabicLetters('بسم الله الرحمن الرحيم') : 'بسم الله الرحمن الرحيم'}</div></div><fieldset><legend>{t.reviewPrompt}</legend><div className="rating-grid">{ratingLabels.map((label, index) => <button className={`rating rating-${index + 1}`} key={label} onClick={() => void review(item, index + 1)}><b>{number(index + 1)}</b><span>{label}</span></button>)}</div></fieldset></article> } )}</div>}</section>}
+      {view === 'pages' && <section className="panel"><div className="section-heading"><div><p className="eyebrow">{t.library}</p><h2>{t.libraryTitle}</h2></div><span className="pill">{number(pages.length)}</span></div>{!pages.length ? <Empty t={t} onClick={() => void addNextPage()} /> : <div className="page-list">{pages.map(item => <article key={item.page}><strong>{number(item.page)}</strong><div><h3>{t.page} {number(item.page)}</h3><p>{item.dueDate <= today ? t.dueToday : `${t.scheduled} ${date(item.dueDate)}`}</p></div><span>{number(item.repetitions)} {t.reviewsCount}</span></article>)}</div>}</section>}</div></main>
 }
-
+function Stat({icon, label, value, detail}: {icon: string, label: string, value: string, detail: string}) { return <article className="stat-card"><span className="stat-icon">{icon}</span><p>{label}</p><strong>{value}</strong><small>{detail}</small></article> }
+function Empty({t, onClick}: {t: typeof copy.ar | typeof copy.en, onClick: () => void}) { return <div className="empty-state"><span>✓</span><h3>{t.noReview}</h3><p>{t.noReviewBody}</p><button className="primary" onClick={onClick}>{t.back}</button></div> }
 export default App

@@ -10,8 +10,8 @@ export interface MemorizedPage {
 }
 
 export interface Setting {
-  key: 'dailyTarget'
-  value: number
+  key: 'dailyTarget' | 'language'
+  value: number | 'ar' | 'en'
 }
 
 const db = new Dexie('hifz-journey') as Dexie & {
@@ -20,5 +20,4 @@ const db = new Dexie('hifz-journey') as Dexie & {
 }
 
 db.version(1).stores({ pages: 'page, dueDate', settings: 'key' })
-
 export default db
