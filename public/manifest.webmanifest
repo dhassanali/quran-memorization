@@ -1,7 +1,7 @@
 {
-  "name": "Hifz Journey",
-  "short_name": "Hifz Journey",
-  "description": "An offline-first Quran memorization companion.",
+  "name": "حِفظي — رحلة الحفظ",
+  "short_name": "حِفظي",
+  "description": "رفيق لحفظ القرآن ومراجعة الصفحات دون اتصال بالإنترنت.",
   "start_url": "/quran-memorization/",
   "scope": "/quran-memorization/",
   "display": "standalone",

@@ -2,17 +2,26 @@ import { useEffect, useMemo, useState } from 'react'
 import db, { type MemorizedPage } from './db'
 import { addDays, localDate, nextInterval, TOTAL_PAGES } from './srs'
 
+type View = 'home' | 'reviews' | 'pages'
+
 const ratings = [
-  { value: 5, label: 'Easy', hint: 'Perfect' }, { value: 4, label: 'Good', hint: 'A little work' },
-  { value: 3, label: 'Average', hint: 'Needs practice' }, { value: 2, label: 'Not good', hint: 'Needs work' },
-  { value: 1, label: 'Hard', hint: 'Very bad' },
+  { value: 5, label: 'متقن', hint: 'ممتاز، انتقل لفترة أطول', tone: 'emerald' },
+  { value: 4, label: 'جيّد', hint: 'مع تردد بسيط', tone: 'teal' },
+  { value: 3, label: 'متوسط', hint: 'يحتاج إلى تدريب', tone: 'amber' },
+  { value: 2, label: 'ضعيف', hint: 'راجعه غدًا', tone: 'orange' },
+  { value: 1, label: 'صعب', hint: 'ابدأ من جديد غدًا', tone: 'rose' },
 ]
+
+const arabicNumber = new Intl.NumberFormat('ar')
+const formatNumber = (value: number) => arabicNumber.format(value)
+const formatDate = (date: string) => new Intl.DateTimeFormat('ar', { day: 'numeric', month: 'long' }).format(new Date(`${date}T12:00:00`))
 
 function App() {
   const [pages, setPages] = useState<MemorizedPage[]>([])
   const [target, setTarget] = useState(2)
   const [newPage, setNewPage] = useState('')
   const [notice, setNotice] = useState('')
+  const [view, setView] = useState<View>('home')
   const today = localDate()
 
   const refresh = async () => setPages(await db.pages.orderBy('page').toArray())
@@ -20,20 +29,23 @@ function App() {
 
   const due = useMemo(() => pages.filter((item) => item.dueDate <= today).sort((a, b) => a.dueDate.localeCompare(b.dueDate)), [pages, today])
   const learnedToday = useMemo(() => pages.filter((item) => item.addedAt === today).length, [pages, today])
+  const nextPage = useMemo(() => Array.from({ length: TOTAL_PAGES }, (_, index) => index + 1).find((page) => !pages.some((item) => item.page === page)), [pages])
   const progress = Math.round((pages.length / TOTAL_PAGES) * 100)
+  const remainingTarget = Math.max(0, target - learnedToday)
 
   async function addPage(event: React.FormEvent) {
     event.preventDefault()
     const page = Number(newPage)
-    if (!Number.isInteger(page) || page < 1 || page > TOTAL_PAGES) return setNotice('Choose a page from 1 to 604.')
-    if (await db.pages.get(page)) return setNotice(`Page ${page} is already in your journey.`)
+    if (!Number.isInteger(page) || page < 1 || page > TOTAL_PAGES) return setNotice('اختر رقم صفحة بين ١ و٦٠٤.')
+    if (await db.pages.get(page)) return setNotice(`الصفحة ${formatNumber(page)} موجودة بالفعل في رحلتك.`)
     await db.pages.add({ page, addedAt: today, dueDate: today, interval: 1, repetitions: 0 })
-    setNewPage(''); setNotice(`Page ${page} added — review it when you are ready.`); await refresh()
+    setNewPage(''); setNotice(`أُضيفت الصفحة ${formatNumber(page)}. راجعها الآن لتثبيت الحفظ.`); await refresh()
   }
 
   async function review(item: MemorizedPage, rating: number) {
     const interval = nextInterval(item.interval, rating)
     await db.pages.update(item.page, { interval, dueDate: addDays(today, interval), lastReviewedAt: today, repetitions: item.repetitions + 1 })
+    setNotice(`أحسنت! موعد الصفحة ${formatNumber(item.page)} القادم هو ${formatDate(addDays(today, interval))}.`)
     await refresh()
   }
 
@@ -42,20 +54,32 @@ function App() {
     setTarget(next); await db.settings.put({ key: 'dailyTarget', value: next })
   }
 
-  return <main className="min-h-screen bg-stone-50 text-stone-800">
-    <header className="bg-emerald-900 text-white"><div className="mx-auto flex max-w-5xl items-center justify-between px-5 py-5"><div><p className="text-xs font-semibold uppercase tracking-[.2em] text-emerald-200">Quran memorization</p><h1 className="font-serif text-2xl">Hifz Journey</h1></div><span className="rounded-full bg-emerald-800 px-3 py-1 text-sm">Offline ready</span></div></header>
-    <div className="mx-auto max-w-5xl space-y-7 px-5 py-8">
-      <section className="grid gap-4 sm:grid-cols-3">
-        <article className="card"><p className="label">Due today</p><p className="metric">{due.length}</p><p className="text-sm text-stone-500">Pages ready for review</p></article>
-        <article className="card"><p className="label">Memorized today</p><p className="metric">{learnedToday}<span className="text-xl text-stone-400"> / {target}</span></p><p className="text-sm text-stone-500">Your daily page target</p></article>
-        <article className="card"><p className="label">Journey</p><p className="metric">{pages.length}<span className="text-xl text-stone-400"> / 604</span></p><div className="mt-3 h-2 overflow-hidden rounded bg-stone-200"><div className="h-full bg-amber-500" style={{ width: `${progress}%` }} /></div></article>
-      </section>
+  function startAdding() { setView('home'); window.setTimeout(() => document.getElementById('add-page')?.focus(), 0) }
 
-      <section className="rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm"><div className="mb-4 flex items-baseline justify-between"><div><h2 className="text-xl font-semibold">Review first</h2><p className="text-sm text-stone-500">Rate each page after reciting it from memory.</p></div><span className="text-sm font-medium text-emerald-800">{due.length} due</span></div>
-        {due.length === 0 ? <div className="rounded-xl bg-emerald-50 px-4 py-8 text-center"><p className="text-lg font-medium text-emerald-950">All caught up.</p><p className="mt-1 text-sm text-emerald-800">Add a new page below, or come back when a review is due.</p></div> : <div className="space-y-3">{due.map((item) => <article key={item.page} className="rounded-xl border border-stone-200 p-4"><div className="mb-3 flex justify-between"><div><h3 className="text-lg font-semibold">Quran page {item.page}</h3><p className="text-sm text-stone-500">Interval: {item.interval} day{item.interval === 1 ? '' : 's'} · {item.repetitions} reviews</p></div><span className="text-sm text-amber-700">Due {item.dueDate}</span></div><div className="grid grid-cols-5 gap-2">{ratings.map((rating) => <button onClick={() => void review(item, rating.value)} className="rating" key={rating.value} title={rating.hint}><b>{rating.value}</b><span>{rating.label}</span></button>)}</div></article>)}</div>}
-      </section>
+  return <main className="min-h-screen bg-[#f7f8f4] text-slate-800">
+    <header className="hero-shell">
+      <div className="mx-auto max-w-6xl px-5 pb-8 pt-5 sm:px-8">
+        <div className="flex items-center justify-between text-sm text-emerald-50/85"><span className="flex items-center gap-2"><i className="online-dot" /> يعمل دون اتصال</span><span>{formatDate(today)}</span></div>
+        <div className="mt-9 flex flex-wrap items-end justify-between gap-5"><div><p className="eyebrow text-emerald-200">رحلة الحفظ</p><h1 className="mt-2 text-4xl font-bold tracking-tight text-white sm:text-5xl">حِفظي</h1><p className="mt-3 max-w-md text-emerald-50/80">رفيق هادئ يساعدك على تثبيت ما حفظت، صفحةً بعد صفحة.</p></div><div className="ayah-mark" aria-hidden="true">۝</div></div>
+      </div>
+    </header>
 
-      <section className="grid gap-5 md:grid-cols-[1.4fr_1fr]"><form onSubmit={addPage} className="card"><h2 className="text-xl font-semibold">Add a memorized page</h2><p className="mb-4 mt-1 text-sm text-stone-500">Every Quran page receives its own review schedule.</p><div className="flex gap-2"><input aria-label="Quran page number" value={newPage} onChange={(e) => setNewPage(e.target.value)} inputMode="numeric" placeholder="Page number (1–604)" className="field" /><button className="primary">Add page</button></div>{notice && <p className="mt-3 text-sm text-emerald-800">{notice}</p>}</form><section className="card"><h2 className="text-xl font-semibold">Daily target</h2><p className="mb-3 mt-1 text-sm text-stone-500">Pages to memorize each day.</p><label className="flex items-center gap-3"><input aria-label="Daily page target" type="number" min="1" max="20" value={target} onChange={(e) => void saveTarget(Number(e.target.value))} className="field w-24" /><span className="text-sm text-stone-500">pages</span></label></section></section>
+    <nav className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 backdrop-blur" aria-label="التنقل الرئيسي"><div className="mx-auto flex max-w-6xl gap-1 px-4 sm:px-7">{([{ id: 'home', label: 'الرئيسية' }, { id: 'reviews', label: `المراجعات${due.length ? ` (${formatNumber(due.length)})` : ''}` }, { id: 'pages', label: 'صفحاتي' }] as { id: View, label: string }[]).map((item) => <button key={item.id} onClick={() => setView(item.id)} className={`nav-item ${view === item.id ? 'nav-item-active' : ''}`}>{item.label}</button>)}</div></nav>
+
+    <div className="mx-auto max-w-6xl space-y-7 px-5 py-7 sm:px-8 sm:py-10">
+      {notice && <div className="notice" role="status"><span>✦</span><p>{notice}</p><button onClick={() => setNotice('')} aria-label="إغلاق التنبيه">×</button></div>}
+
+      {view === 'home' && <>
+        <section className="welcome-card"><div><p className="eyebrow text-emerald-700">خطوتك التالية</p><h2 className="mt-2 text-2xl font-bold text-slate-900">{due.length ? `لديك ${formatNumber(due.length)} ${due.length === 1 ? 'مراجعة' : 'مراجعات'} تنتظرك` : 'أتممت مراجعات اليوم'}</h2><p className="mt-2 text-slate-600">{due.length ? 'ابدأ بالأقدم موعدًا؛ دقائق قليلة اليوم تصنع حفظًا راسخًا.' : 'خذ نفسًا، ثم أضف صفحة جديدة حين تصبح مستعدًا.'}</p></div><button onClick={() => due.length ? setView('reviews') : startAdding()} className="primary primary-large">{due.length ? 'ابدأ المراجعة ←' : 'أضف صفحة جديدة +'}</button></section>
+
+        <section className="grid gap-4 sm:grid-cols-3"><article className="stat-card"><span className="stat-icon">◷</span><p>مراجعات اليوم</p><strong>{formatNumber(due.length)}</strong><small>{due.length ? 'صفحات بحاجة لتثبيت' : 'لا توجد مراجعات معلّقة'}</small></article><article className="stat-card"><span className="stat-icon">✦</span><p>هدف الحفظ</p><strong>{formatNumber(learnedToday)} <em>/ {formatNumber(target)}</em></strong><small>{remainingTarget ? `متبقّي ${formatNumber(remainingTarget)} ${remainingTarget === 1 ? 'صفحة' : 'صفحات'}` : 'أنجزت هدف اليوم، بارك الله فيك'}</small></article><article className="stat-card"><span className="stat-icon">⌁</span><p>رحلتك الكلية</p><strong>{formatNumber(pages.length)} <em>/ ٦٠٤</em></strong><div className="progress-track" aria-label={`${progress}% من القرآن`}><div style={{ width: `${progress}%` }} /></div><small>{formatNumber(progress)}٪ مكتمل</small></article></section>
+
+        <section className="grid gap-5 lg:grid-cols-[1.35fr_.85fr]"><form onSubmit={addPage} className="panel"><div className="panel-heading"><div><p className="eyebrow text-emerald-700">حفظ جديد</p><h2>أضف صفحة إلى رحلتك</h2></div><span className="page-badge">١ — ٦٠٤</span></div><p className="mt-2 text-sm leading-6 text-slate-600">ستحصل كل صفحة على جدول مراجعة مستقل يبدأ اليوم.</p><div className="mt-5 flex flex-col gap-3 sm:flex-row"><input id="add-page" aria-label="رقم صفحة القرآن" value={newPage} onChange={(event) => setNewPage(event.target.value)} inputMode="numeric" placeholder={nextPage ? `مثال: الصفحة ${formatNumber(nextPage)}` : 'رقم الصفحة'} className="field flex-1" /><button className="primary">إضافة الصفحة</button></div></form><aside className="panel target-panel"><p className="eyebrow text-emerald-700">تخصيص يومك</p><h2 className="mt-1">هدف الحفظ اليومي</h2><div className="mt-5 flex items-center gap-3"><button className="stepper" onClick={() => void saveTarget(target - 1)} type="button" aria-label="تقليل الهدف">−</button><output className="target-value">{formatNumber(target)}<small> صفحات</small></output><button className="stepper" onClick={() => void saveTarget(target + 1)} type="button" aria-label="زيادة الهدف">+</button></div><p className="mt-4 text-sm text-slate-500">يمكنك اختيار ما بين صفحة واحدة و٢٠ صفحة.</p></aside></section>
+      </>}
+
+      {view === 'reviews' && <section className="panel"><div className="panel-heading"><div><p className="eyebrow text-emerald-700">وقت التثبيت</p><h2>مراجعات اليوم</h2></div><span className="page-badge">{formatNumber(due.length)} مستحق</span></div>{due.length === 0 ? <div className="empty-state"><span>✓</span><h3>لا شيء للمراجعة الآن</h3><p>حين يحين موعد صفحة، ستظهر هنا لتقييم تسميعك.</p><button className="primary" onClick={() => setView('home')}>العودة للرئيسية</button></div> : <div className="mt-6 space-y-4">{due.map((item, index) => <article key={item.page} className="review-card"><div className="review-meta"><span className="review-number">{formatNumber(index + 1)}</span><div><h3>الصفحة {formatNumber(item.page)}</h3><p>آخر فترة: {formatNumber(item.interval)} {item.interval === 1 ? 'يوم' : 'أيام'} · {formatNumber(item.repetitions)} مراجعات</p></div><span className="due-label">مستحقة {item.dueDate === today ? 'اليوم' : formatDate(item.dueDate)}</span></div><fieldset><legend>كيف كان تسميعك؟</legend><div className="rating-grid">{ratings.map((rating) => <button key={rating.value} className={`rating rating-${rating.tone}`} onClick={() => void review(item, rating.value)} title={rating.hint}><b>{formatNumber(rating.value)}</b><span>{rating.label}</span><small>{rating.hint}</small></button>)}</div></fieldset></article>)}</div>}</section>}
+
+      {view === 'pages' && <section className="panel"><div className="panel-heading"><div><p className="eyebrow text-emerald-700">مكتبتك</p><h2>الصفحات المحفوظة</h2></div><span className="page-badge">{formatNumber(pages.length)} صفحة</span></div>{pages.length === 0 ? <div className="empty-state"><span>۝</span><h3>لم تضف صفحاتك بعد</h3><p>ابدأ بأول صفحة حفظتها، وسنتابع مواعيد مراجعتها.</p><button className="primary" onClick={() => startAdding()}>إضافة صفحة</button></div> : <div className="page-list">{pages.map((item) => <article key={item.page}><strong>{formatNumber(item.page)}</strong><div><h3>الصفحة {formatNumber(item.page)}</h3><p>{item.dueDate <= today ? 'مستحقة للمراجعة' : `موعدها ${formatDate(item.dueDate)}`}</p></div><span>{formatNumber(item.interval)} {item.interval === 1 ? 'يوم' : 'أيام'}</span></article>)}</div>}</section>}
     </div>
   </main>
 }

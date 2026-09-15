@@ -1,15 +1,41 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Libre+Baskerville:wght@700&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@layer base { body { margin: 0; font-family: 'DM Sans', sans-serif; } h1 { font-family: 'Libre Baskerville', serif; } button, input { font: inherit; } }
+@layer base {
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: Tahoma, Arial, sans-serif; }
+  button, input { font: inherit; }
+  button { cursor: pointer; }
+}
+
 @layer components {
-  .card { @apply rounded-2xl border border-stone-200 bg-white p-5 shadow-sm; }
-  .label { @apply text-xs font-semibold uppercase tracking-[.15em] text-stone-500; }
-  .metric { @apply mt-2 text-4xl font-semibold text-emerald-900; }
-  .field { @apply min-w-0 rounded-lg border border-stone-300 bg-white px-3 py-2 text-stone-900 outline-none transition focus:border-emerald-700 focus:ring-2 focus:ring-emerald-100; }
-  .primary { @apply rounded-lg bg-emerald-800 px-4 py-2 font-medium text-white transition hover:bg-emerald-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2; }
-  .rating { @apply flex min-h-14 flex-col items-center justify-center rounded-lg border border-stone-200 bg-stone-50 text-xs text-stone-600 transition hover:border-emerald-500 hover:bg-emerald-50 focus:outline-none focus:ring-2 focus:ring-emerald-500; }
-  .rating b { @apply text-base text-emerald-900; }
+  .hero-shell { @apply bg-gradient-to-bl from-[#073d35] via-[#0e5e4e] to-[#117260]; }
+  .online-dot { @apply h-2 w-2 rounded-full bg-emerald-300 shadow-[0_0_0_4px_rgba(110,231,183,.14)]; }
+  .ayah-mark { @apply grid h-20 w-20 place-items-center rounded-full border border-emerald-200/20 bg-white/10 text-4xl text-emerald-100; }
+  .eyebrow { @apply text-xs font-bold tracking-[.16em]; }
+  .nav-item { @apply border-b-2 border-transparent px-4 py-4 text-sm font-bold text-slate-500 transition hover:text-emerald-800; }
+  .nav-item-active { @apply border-emerald-700 text-emerald-800; }
+  .notice { @apply flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-950 shadow-sm; }
+  .notice > span { @apply text-lg text-emerald-700; } .notice p { @apply flex-1; } .notice button { @apply text-xl leading-none text-emerald-700; }
+  .welcome-card { @apply flex flex-col justify-between gap-5 rounded-2xl border border-emerald-100 bg-white p-6 shadow-[0_8px_28px_rgba(15,70,60,.07)] sm:flex-row sm:items-center sm:p-8; }
+  .primary { @apply rounded-xl bg-emerald-800 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-950 focus:outline-none focus:ring-4 focus:ring-emerald-200; }
+  .primary-large { @apply shrink-0 px-6 py-3.5; }
+  .stat-card { @apply rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_4px_16px_rgba(15,23,42,.035)]; }
+  .stat-card p { @apply mt-3 text-sm font-bold text-slate-500; } .stat-card strong { @apply mt-1 block text-3xl font-bold text-slate-900; } .stat-card em { @apply text-xl not-italic text-slate-400; } .stat-card small { @apply mt-2 block text-xs text-slate-500; }
+  .stat-icon { @apply grid h-9 w-9 place-items-center rounded-xl bg-emerald-50 text-lg text-emerald-800; }
+  .progress-track { @apply mt-3 h-1.5 overflow-hidden rounded-full bg-slate-100; } .progress-track div { @apply h-full rounded-full bg-amber-500 transition-all; }
+  .panel { @apply rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_4px_18px_rgba(15,23,42,.04)] sm:p-7; }
+  .panel-heading { @apply flex items-start justify-between gap-4; } .panel h2 { @apply text-xl font-bold text-slate-900; }
+  .page-badge { @apply shrink-0 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800; }
+  .field { @apply min-w-0 rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-emerald-700 focus:ring-4 focus:ring-emerald-100; }
+  .target-panel { @apply bg-[#f4faf6]; }
+  .stepper { @apply grid h-11 w-11 place-items-center rounded-xl border border-emerald-200 bg-white text-xl font-bold text-emerald-800 transition hover:bg-emerald-100; }
+  .target-value { @apply min-w-28 text-center text-2xl font-bold text-emerald-950; } .target-value small { @apply text-sm font-normal text-slate-500; }
+  .empty-state { @apply mx-auto flex max-w-md flex-col items-center py-14 text-center; } .empty-state > span { @apply grid h-14 w-14 place-items-center rounded-full bg-emerald-50 text-2xl text-emerald-700; } .empty-state h3 { @apply mt-5 text-lg font-bold; } .empty-state p { @apply mt-2 text-sm leading-6 text-slate-500; } .empty-state button { @apply mt-6; }
+  .review-card { @apply rounded-2xl border border-slate-200 p-4 sm:p-5; } .review-meta { @apply flex flex-wrap items-center gap-3; } .review-number { @apply grid h-9 w-9 place-items-center rounded-full bg-slate-100 text-sm font-bold text-slate-600; } .review-meta h3, .page-list h3 { @apply font-bold text-slate-900; } .review-meta p, .page-list p { @apply mt-1 text-xs text-slate-500; } .due-label { @apply me-0 ms-auto rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-800; }
+  fieldset { @apply mt-5 border-0 p-0; } legend { @apply mb-3 text-sm font-bold text-slate-700; } .rating-grid { @apply grid grid-cols-1 gap-2 sm:grid-cols-5; }
+  .rating { @apply rounded-xl border p-3 text-right transition focus:outline-none focus:ring-4; } .rating b { @apply text-lg; } .rating span { @apply mt-1 block text-sm font-bold; } .rating small { @apply mt-1 block text-xs opacity-75; }
+  .rating-emerald { @apply border-emerald-200 bg-emerald-50 text-emerald-900 hover:bg-emerald-100 focus:ring-emerald-100; } .rating-teal { @apply border-teal-200 bg-teal-50 text-teal-900 hover:bg-teal-100 focus:ring-teal-100; } .rating-amber { @apply border-amber-200 bg-amber-50 text-amber-900 hover:bg-amber-100 focus:ring-amber-100; } .rating-orange { @apply border-orange-200 bg-orange-50 text-orange-900 hover:bg-orange-100 focus:ring-orange-100; } .rating-rose { @apply border-rose-200 bg-rose-50 text-rose-900 hover:bg-rose-100 focus:ring-rose-100; }
+  .page-list { @apply mt-6 grid gap-3 sm:grid-cols-2; } .page-list article { @apply flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 p-4; } .page-list article > strong { @apply grid h-10 w-10 place-items-center rounded-lg bg-white text-emerald-800 shadow-sm; } .page-list article > div { @apply flex-1; } .page-list article > span { @apply text-xs font-bold text-slate-500; }
 }
