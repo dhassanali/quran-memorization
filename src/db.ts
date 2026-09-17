@@ -7,6 +7,10 @@ export interface MemorizedPage {
   dueDate: string
   interval: number
   repetitions: number
+  /** Anki-style ease multiplier, stored per page. */
+  easeFactor?: number
+  /** Number of failed-recall reviews for this page. */
+  lapses?: number
 }
 
 export interface Setting {
