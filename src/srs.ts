@@ -3,11 +3,13 @@ import type { MemorizedPage } from './db'
 
 export const TOTAL_PAGES = 604
 export const POLICY_VERSION = 1
+export const APP_TIME_ZONE = 'Asia/Riyadh'
 export const scheduler = fsrs({ request_retention: 0.9, enable_short_term: false, learning_steps: [], relearning_steps: [] })
 
 export function localDate(date = new Date()): string {
-  const offset = date.getTimezoneOffset() * 60_000
-  return new Date(date.getTime() - offset).toISOString().slice(0, 10)
+  const parts = new Intl.DateTimeFormat('en', { timeZone: APP_TIME_ZONE, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(date)
+  const value = (type: string) => parts.find(part => part.type === type)!.value
+  return `${value('year')}-${value('month')}-${value('day')}`
 }
 
 export function ratingForErrors(errors: number, total: number): Grade {

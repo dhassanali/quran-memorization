@@ -27,7 +27,7 @@ test('new and legacy pages become FSRS cards on actual review', () => {
   assert.equal(repeated.card.reps, 2)
 })
 
-test('localDate follows the active local calendar day', () => {
-  assert.equal(srs.localDate(new Date('2024-03-10T04:30:00Z')), '2024-03-09')
-  assert.equal(srs.localDate(new Date('2024-03-10T07:30:00Z')), '2024-03-10')
+test('localDate follows the Riyadh calendar day even when the host uses another time zone', () => {
+  assert.equal(srs.localDate(new Date('2025-01-01T20:59:00Z')), '2025-01-01')
+  assert.equal(srs.localDate(new Date('2025-01-01T21:00:00Z')), '2025-01-02')
 })

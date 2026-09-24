@@ -1,8 +1,8 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import db, { type MemorizedPage, type QuranPage } from './db'
 import { downloadBackup, parseBackup, replaceFromBackup, type Backup } from './backup'
-import { countReviewWords, DATASET_VERSION, getQuranPage, purgeExpiredQuranPages, shouldShowSurahHeading, surahOf } from './quran'
-import { localDate, POLICY_VERSION, reviewPage, TOTAL_PAGES } from './srs'
+import { countReviewWords, DATASET_VERSION, getQuranPage, mushafRows, purgeExpiredQuranPages, surahName, surahOf } from './quran'
+import { APP_TIME_ZONE, localDate, POLICY_VERSION, reviewPage, TOTAL_PAGES } from './srs'
 
 type View = 'home' | 'reviews' | 'pages'
 type Language = 'ar' | 'en'
@@ -27,7 +27,7 @@ function App() {
   const dialog = useRef<HTMLDivElement>(null)
   const t = copy[language]
   const number = (n: number) => language === 'ar' ? new Intl.NumberFormat('ar').format(n) : String(n)
-  const date = (value: string) => new Intl.DateTimeFormat(language, { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(`${value}T12:00:00`))
+  const date = (value: string) => new Intl.DateTimeFormat(language, { timeZone: APP_TIME_ZONE, day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(`${value}T12:00:00Z`))
   const refresh = async () => setPages(await db.pages.orderBy('page').toArray())
 
   useEffect(() => { void (async () => { try { await purgeExpiredQuranPages(); const settings = await db.settings.toArray(); const savedTarget = settings.find(x => x.key === 'dailyTarget')?.value; const savedLanguage = settings.find(x => x.key === 'language')?.value; if (typeof savedTarget === 'number' && savedTarget >= 1 && savedTarget <= 20) setTarget(savedTarget); if (savedLanguage === 'en') setLanguage('en'); await refresh() } catch { setNotice('Could not read saved data') } })() }, [])
@@ -74,7 +74,7 @@ function App() {
       {view === 'home' && <><section className="next-card"><div><p className="eyebrow">{t.next}</p><h2>{due.length ? `${t.due} · ${number(due.length)}` : t.none}</h2><p>{due.length ? `${t.page} ${number(due[0].page)}` : nextPage ? `${t.next}: ${number(nextPage)}` : `${number(TOTAL_PAGES)} / ${number(TOTAL_PAGES)}`}</p></div><button className="primary primary-large" onClick={() => due.length ? setView('reviews') : void addPage()} disabled={busy || (!due.length && !canAdd)}>{due.length ? t.start : canAdd ? t.add : t.limit}</button></section><section className="stat-grid"><Stat label={t.due} value={number(due.length)} /><Stat label={t.added} value={`${number(learnedToday)} / ${number(target)}`} /><Stat label={t.total} value={`${number(pages.length)} / ${number(TOTAL_PAGES)}`} /></section><section className="panel"><h2>{t.next}</h2><p className="next-page-number">{nextPage ? number(nextPage) : '✓'}</p><button className="primary" onClick={() => void addPage()} disabled={!canAdd || busy}>{canAdd ? t.add : t.limit}</button></section></>}
       {view === 'reviews' && <section className="panel"><div className="section-heading"><h2>{t.reviews}</h2><span className="pill">{number(due.length)}</span></div>{due[0] ? <PageReview key={due[0].page} item={due[0]} language={language} busy={busy} onFinish={finishReview} onError={setNotice} /> : <Empty text={t.none} back={t.back} onClick={() => setView('home')} />}</section>}
       {view === 'pages' && <section className="panel"><div className="section-heading"><h2>{t.total}</h2><span className="pill">{number(pages.length)}</span></div>{!pages.length ? <Empty text={t.empty} back={t.back} onClick={() => setView('home')} /> : <div className="page-list">{pages.map(item => <article key={item.page}><strong>{number(item.page)}</strong><div><h3>{t.page} {number(item.page)}</h3><p>{t.scheduled}: {date(item.dueDate)}</p></div><span>{number(item.repetitions)} {t.reviews}</span></article>)}</div>}</section>}</div><footer className="source-credit shell-content">Quran text and font: <a href="https://quran.foundation/" target="_blank" rel="noreferrer">Quran Foundation</a></footer>
-    {settingsOpen && <div className="modal-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) setSettingsOpen(false) }}><div className="settings-dialog" role="dialog" aria-modal="true" aria-labelledby="settings-title" tabIndex={-1} ref={dialog}><div className="section-heading"><h2 id="settings-title">{t.settings}</h2><button className="icon-button" aria-label={t.close} onClick={() => setSettingsOpen(false)}>×</button></div><label className="setting-row">{t.target}<input type="number" min="1" max="20" disabled={busy} value={targetInput} onChange={event => setTargetInput(event.target.value)} onBlur={() => void saveTarget(Number(targetInput))} onKeyDown={event => { if (event.key === 'Enter') event.currentTarget.blur() }} /></label><label className="setting-row">{t.language}<select value={language} disabled={busy} onChange={event => void saveLanguage(event.target.value as Language)}><option value="ar">العربية</option><option value="en">English</option></select></label><div className="backup-tools"><button className="primary" disabled={busy} onClick={() => void downloadBackup().catch(() => setNotice('Export failed'))}>{t.export}</button><label className="file-button">{t.import}<input type="file" disabled={busy} accept="application/json,.json" onChange={event => void chooseBackup(event.target.files?.[0])} /></label></div>{backup && <div className="import-preview"><p>{t.backupDate}: {new Date(backup.exportedAt).toLocaleString(language)}</p><p>{t.total}: {number(backup.pages.length)} · {t.reviews}: {number(backup.history.length)}</p><p>{t.importInfo} {t.exportFirst}</p><div className="dialog-actions"><button onClick={() => setBackup(null)}>{t.cancel}</button><button className="danger" disabled={busy} onClick={() => void importBackup()}>{t.replace}</button></div></div>}</div></div>}
+    {settingsOpen && <div className="modal-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) setSettingsOpen(false) }}><div className="settings-dialog" role="dialog" aria-modal="true" aria-labelledby="settings-title" tabIndex={-1} ref={dialog}><div className="section-heading"><h2 id="settings-title">{t.settings}</h2><button className="icon-button" aria-label={t.close} onClick={() => setSettingsOpen(false)}>×</button></div><label className="setting-row">{t.target}<input type="number" min="1" max="20" disabled={busy} value={targetInput} onChange={event => setTargetInput(event.target.value)} onBlur={() => void saveTarget(Number(targetInput))} onKeyDown={event => { if (event.key === 'Enter') event.currentTarget.blur() }} /></label><label className="setting-row">{t.language}<select value={language} disabled={busy} onChange={event => void saveLanguage(event.target.value as Language)}><option value="ar">العربية</option><option value="en">English</option></select></label><div className="backup-tools"><button className="primary" disabled={busy} onClick={() => void downloadBackup().catch(() => setNotice('Export failed'))}>{t.export}</button><label className="file-button">{t.import}<input type="file" disabled={busy} accept="application/json,.json" onChange={event => void chooseBackup(event.target.files?.[0])} /></label></div>{backup && <div className="import-preview"><p>{t.backupDate}: {new Date(backup.exportedAt).toLocaleString(language, { timeZone: APP_TIME_ZONE })}</p><p>{t.total}: {number(backup.pages.length)} · {t.reviews}: {number(backup.history.length)}</p><p>{t.importInfo} {t.exportFirst}</p><div className="dialog-actions"><button onClick={() => setBackup(null)}>{t.cancel}</button><button className="danger" disabled={busy} onClick={() => void importBackup()}>{t.replace}</button></div></div>}</div></div>}
   </main>
 }
 
@@ -84,18 +84,58 @@ function PageReview({ item, language, busy, onFinish, onError }: { item: Memoriz
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
   const [attempt, setAttempt] = useState(0)
+  const [submitting, setSubmitting] = useState(false)
+  const submittingRef = useRef(false)
   const saveChain = useRef(Promise.resolve())
   const markedRef = useRef<string[]>([])
+  const paperRef = useRef<HTMLDivElement>(null)
   const t = copy[language]
   useEffect(() => { let active = true; setLoading(true); setLoadError(false); void (async () => { try { const [page, draft] = await Promise.all([getQuranPage(item.page), db.drafts.get(item.page)]); if (!active) return; const valid = new Set(page.words.filter(w => w.charType === 'word').map(w => w.id)); const saved = draft?.wordIds.filter(id => valid.has(id)) || []; markedRef.current = saved; setMarks(saved); setContent(page) } catch { if (active) setLoadError(true) } finally { if (active) setLoading(false) } })(); return () => { active = false } }, [item.page, attempt])
-  const toggle = (id: string) => { const next = markedRef.current.includes(id) ? markedRef.current.filter(x => x !== id) : [...markedRef.current, id]; markedRef.current = next; setMarks(next); saveChain.current = saveChain.current.catch(() => undefined).then(() => db.drafts.put({ page: item.page, wordIds: next, updatedAt: new Date().toISOString() })).then(() => undefined); void saveChain.current.catch(() => onError('Could not save review draft')) }
-  const finish = async () => { if (!content || busy) return; try { await saveChain.current; await onFinish(item, content, markedRef.current) } catch (error) { onError(error instanceof Error ? error.message : 'Could not save review') } }
+  useEffect(() => {
+    const paper = paperRef.current
+    if (!content || !paper) return
+    let active = true
+    let lastWidth = 0
+    const fitLines = () => {
+      if (!active) return
+      const width = paper.clientWidth
+      if (!width) return
+      const preferred = Math.min(32, Math.max(20, width / 20))
+      paper.style.setProperty('--mushaf-font-size', `${preferred}px`)
+      const lines = paper.querySelectorAll<HTMLElement>('.mushaf-line')
+      const ratio = Math.max(1, ...Array.from(lines, line => line.scrollWidth / line.clientWidth))
+      paper.style.setProperty('--mushaf-font-size', `${preferred / ratio * 0.98}px`)
+    }
+    const observer = new ResizeObserver(() => {
+      const width = paper.clientWidth
+      if (width !== lastWidth) { lastWidth = width; fitLines() }
+    })
+    observer.observe(paper)
+    fitLines()
+    void document.fonts.ready.then(fitLines)
+    return () => { active = false; observer.disconnect() }
+  }, [content])
+  const toggle = (id: string) => { if (busy || submittingRef.current) return; const next = markedRef.current.includes(id) ? markedRef.current.filter(x => x !== id) : [...markedRef.current, id]; markedRef.current = next; setMarks(next); saveChain.current = saveChain.current.catch(() => undefined).then(() => db.drafts.put({ page: item.page, wordIds: next, updatedAt: new Date().toISOString() })).then(() => undefined); void saveChain.current.catch(() => onError('Could not save review draft')) }
+  const finish = async () => { if (!content || busy || submittingRef.current) return; submittingRef.current = true; setSubmitting(true); try { await saveChain.current; await onFinish(item, content, markedRef.current); markedRef.current = []; setMarks([]) } catch (error) { onError(error instanceof Error ? error.message : 'Could not save review') } finally { submittingRef.current = false; setSubmitting(false) } }
   if (loading) return <div className="empty-state">{t.loading}</div>
   if (loadError || !content) return <div className="empty-state"><p>{t.unavailable}</p><button className="primary" onClick={() => setAttempt(x => x + 1)}>{t.retry}</button></div>
-  const lines = new Map<number, typeof content.words>()
-  content.words.forEach(word => lines.set(word.line, [...(lines.get(word.line) || []), word]))
-  let lastSurah = 0
-  return <article className="mushaf-review"><div className="mushaf-top"><strong>{t.page} {language === 'ar' ? new Intl.NumberFormat('ar').format(item.page) : item.page}</strong><span>{content.words[0]?.verseKey} – {content.words[content.words.length - 1]?.verseKey}</span></div><p className="review-hint">{t.words}</p><div className="mushaf-page" dir="rtl" translate="no">{[...lines.entries()].sort((a, b) => a[0] - b[0]).map(([line, words]) => <div className="mushaf-line" key={line}>{words.map(word => { const surah = surahOf(word); const heading = shouldShowSurahHeading(word, lastSurah); lastSurah = surah; return <Fragment key={word.id}>{heading && <span className="surah-heading">سورة {new Intl.NumberFormat('ar').format(surah)}</span>}<span>{word.charType === 'word' ? <button type="button" className={`quran-word ${marks.includes(word.id) ? 'word-error' : ''}`} aria-pressed={marks.includes(word.id)} aria-label={`${word.text} ${marks.includes(word.id) ? language === 'ar' ? 'خطأ محدد' : 'marked' : ''}`} onClick={() => toggle(word.id)}>{word.text}</button> : <span className="verse-marker">{word.text}</span>}</span></Fragment> })}</div>)}</div><div className="review-footer"><span>{t.errors}: {language === 'ar' ? new Intl.NumberFormat('ar').format(marks.length) : marks.length} / {language === 'ar' ? new Intl.NumberFormat('ar').format(countReviewWords(content)) : countReviewWords(content)}</span><button className="primary" disabled={busy} onClick={() => void finish()}>{t.finish}</button></div></article>
+  const rows = mushafRows(content)
+  const firstSurah = surahOf(content.words[0])
+  const lastSurah = surahOf(content.words[content.words.length - 1])
+  const surahLabel = firstSurah === lastSurah ? `سورة ${surahName(firstSurah)}` : `${surahName(firstSurah)} – ${surahName(lastSurah)}`
+  return <article className="mushaf-review">
+    <div className="mushaf-top"><strong>{t.page} {language === 'ar' ? new Intl.NumberFormat('ar').format(item.page) : item.page}</strong><span>{surahLabel}</span></div>
+    <p className="review-hint">{t.words}</p>
+    <div className="mushaf-page" dir="rtl" translate="no" ref={paperRef}>
+      <div className="mushaf-text">
+        {rows.map(row => row.kind === 'words' ? <div className="mushaf-line" key={row.line}>
+          {row.words.map(word => word.charType === 'word' ? <button key={word.id} type="button" className={`quran-word ${marks.includes(word.id) ? 'word-error' : ''}`} aria-pressed={marks.includes(word.id)} disabled={busy || submitting} aria-label={`${word.text} ${marks.includes(word.id) ? language === 'ar' ? 'خطأ محدد' : 'marked' : ''}`} onClick={() => toggle(word.id)}>{word.text}</button> : <span className="verse-marker" key={word.id}>{word.text}</span>)}
+        </div> : row.kind === 'heading' ? <div className="mushaf-heading" key={row.line}>سورة {surahName(row.surah)}</div> : row.kind === 'basmala' ? <div className="mushaf-basmala" key={row.line}>بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</div> : <div className="mushaf-space" key={row.line} aria-hidden="true" />)}
+      </div>
+      <div className="mushaf-page-number">{new Intl.NumberFormat('ar').format(item.page)}</div>
+    </div>
+    <div className="review-footer"><span>{t.errors}: {language === 'ar' ? new Intl.NumberFormat('ar').format(marks.length) : marks.length} / {language === 'ar' ? new Intl.NumberFormat('ar').format(countReviewWords(content)) : countReviewWords(content)}</span><button className="primary" disabled={busy || submitting} onClick={() => void finish()}>{t.finish}</button></div>
+  </article>
 }
 
 function Stat({ label, value }: { label: string; value: string }) { return <article className="stat-card"><span className="stat-icon">✦</span><p>{label}</p><strong>{value}</strong></article> }

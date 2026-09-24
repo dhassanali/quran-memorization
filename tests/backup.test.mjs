@@ -32,6 +32,12 @@ test('invalid backup is rejected without changing saved pages', async () => {
   await db.delete()
 })
 
+test('valid calendar dates import in a time zone ahead of UTC', () => {
+  const backup = { format: 'hifz-backup', version: 1, exportedAt: '2025-01-01T12:00:00Z', datasetVersion: 'quran-foundation-qcf-v2-1', policyVersion: 1, pages: [{ page: 1, addedAt: '2025-01-01', dueDate: '2025-01-02', interval: 1, repetitions: 0 }], settings: [], drafts: [], history: [] }
+  assert.equal(parseBackup(backup).pages[0].addedAt, '2025-01-01')
+  assert.throws(() => parseBackup({ ...backup, pages: [{ ...backup.pages[0], dueDate: '2025-02-31' }] }))
+})
+
 test('a failed import transaction restores the original records', async () => {
   const original = { page: 2, addedAt: '2025-01-01', dueDate: '2025-01-02', interval: 1, repetitions: 0 }
   const replacement = { ...original, page: 3 }

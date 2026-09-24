@@ -2,6 +2,8 @@ import db, { type QuranPage, type QuranWord } from './db'
 import { TOTAL_PAGES } from './srs'
 
 export const DATASET_VERSION = 'quran-foundation-qcf-v2-1'
+const SURAH_NAMES = 'الفاتحة، البقرة، آل عمران، النساء، المائدة، الأنعام، الأعراف، الأنفال، التوبة، يونس، هود، يوسف، الرعد، ابراهيم، الحجر، النحل، الإسراء، الكهف، مريم، طه، الأنبياء، الحج، المؤمنون، النور، الفرقان، الشعراء، النمل، القصص، العنكبوت، الروم، لقمان، السجدة، الأحزاب، سبإ، فاطر، يس، الصافات، ص، الزمر، غافر، فصلت، الشورى، الزخرف، الدخان، الجاثية، الأحقاف، محمد، الفتح، الحجرات، ق، الذاريات، الطور، النجم، القمر، الرحمن، الواقعة، الحديد، المجادلة، الحشر، الممتحنة، الصف، الجمعة، المنافقون، التغابن، الطلاق، التحريم، الملك، القلم، الحاقة، المعارج، نوح، الجن، المزمل، المدثر، القيامة، الانسان، المرسلات، النبإ، النازعات، عبس، التكوير، الإنفطار، المطففين، الإنشقاق، البروج، الطارق، الأعلى، الغاشية، الفجر، البلد، الشمس، الليل، الضحى، الشرح، التين، العلق، القدر، البينة، الزلزلة، العاديات، القارعة، التكاثر، العصر، الهمزة، الفيل، قريش، الماعون، الكوثر، الكافرون، النصر، المسد، الإخلاص، الفلق، الناس'.split('، ')
+export function surahName(surah: number): string { return SURAH_NAMES[surah - 1] || String(surah) }
 const CACHE_LIFETIME_MS = 6 * 24 * 60 * 60 * 1000
 const inflight = new Map<number, Promise<QuranPage>>()
 
@@ -60,4 +62,34 @@ export function surahOf(word: QuranWord): number { return Number(word.verseKey.s
 export function shouldShowSurahHeading(word: QuranWord, previousSurah: number): boolean {
   const [surah, ayah] = word.verseKey.split(':').map(Number)
   return surah !== previousSurah && ayah === 1 && word.id === `${word.verseKey}:1`
+}
+
+export type MushafRow =
+  | { line: number; kind: 'words'; words: QuranWord[] }
+  | { line: number; kind: 'heading' | 'basmala'; surah: number }
+  | { line: number; kind: 'space' }
+
+export function mushafRows(page: QuranPage): MushafRow[] {
+  const wordsByLine = new Map<number, QuranWord[]>()
+  for (const word of page.words) wordsByLine.set(word.line, [...(wordsByLine.get(word.line) || []), word])
+
+  const decorations = new Map<number, MushafRow>()
+  for (const word of page.words) {
+    const surah = surahOf(word)
+    if (!shouldShowSurahHeading(word, surah - 1)) continue
+    const hasDecorativeBasmala = surah !== 1 && surah !== 9
+    const headingLine = word.line - (hasDecorativeBasmala ? 2 : 1)
+    if (headingLine < 1 || wordsByLine.has(headingLine)) continue
+    decorations.set(headingLine, { line: headingLine, kind: 'heading', surah })
+    if (hasDecorativeBasmala && !wordsByLine.has(word.line - 1)) {
+      decorations.set(word.line - 1, { line: word.line - 1, kind: 'basmala', surah })
+    }
+  }
+
+  const lineCount = page.page === 1 ? Math.max(...page.words.map(word => word.line)) : 15
+  return Array.from({ length: lineCount }, (_, index): MushafRow => {
+    const line = index + 1
+    const words = wordsByLine.get(line)
+    return words ? { line, kind: 'words', words } : decorations.get(line) || { line, kind: 'space' }
+  })
 }

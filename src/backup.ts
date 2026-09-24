@@ -6,7 +6,7 @@ const FORMAT = 'hifz-backup'
 const VERSION = 1
 export interface Backup { format: string; version: number; exportedAt: string; datasetVersion: string; policyVersion: number; pages: MemorizedPage[]; settings: Setting[]; drafts: ReviewDraft[]; history: ReviewHistory[] }
 const object = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object' && !Array.isArray(value)
-const date = (value: unknown): value is string => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(`${value}T12:00:00`)) && new Date(`${value}T12:00:00`).toISOString().slice(0, 10) === value
+const date = (value: unknown): value is string => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(`${value}T12:00:00Z`)) && new Date(`${value}T12:00:00Z`).toISOString().slice(0, 10) === value
 const instant = (value: unknown): value is string => typeof value === 'string' && !Number.isNaN(Date.parse(value))
 const pageNumber = (value: unknown): value is number => Number.isInteger(value) && Number(value) >= 1 && Number(value) <= TOTAL_PAGES
 const wordId = (value: unknown): value is string => { if (typeof value !== 'string' || !/^\d{1,3}:\d{1,3}:\d{1,3}$/.test(value)) return false; const [surah, ayah, position] = value.split(':').map(Number); return surah >= 1 && surah <= 114 && ayah >= 1 && position >= 1 }

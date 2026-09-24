@@ -14,6 +14,20 @@ test('surah headings appear only at the first word of a new surah', () => {
   assert.equal(quran.shouldShowSurahHeading(word('112:1:2', '112:1'), 111), false)
 })
 
+test('Mushaf rows preserve line positions and reserve headings and basmalas', () => {
+  const word = (id, line) => ({ id, verseKey: id.split(':').slice(0, 2).join(':'), line, text: 'آية', charType: 'word' })
+  const rows = quran.mushafRows({ page: 604, words: [word('112:1:1', 3), word('112:4:1', 4), word('113:1:1', 7), word('114:1:1', 12)] })
+  assert.equal(rows.length, 15)
+  assert.deepEqual(rows.map(row => row.kind).slice(0, 7), ['heading', 'basmala', 'words', 'words', 'heading', 'basmala', 'words'])
+  assert.equal(rows[9].kind, 'heading')
+  assert.equal(rows[10].kind, 'basmala')
+  assert.equal(rows[11].kind, 'words')
+  assert.deepEqual(quran.mushafRows({ page: 1, words: [word('1:1:1', 2)] }).slice(0, 2).map(row => row.kind), ['heading', 'words'])
+  assert.deepEqual(quran.mushafRows({ page: 187, words: [word('9:1:1', 2)] }).slice(0, 2).map(row => row.kind), ['heading', 'words'])
+  assert.equal(quran.surahName(1), 'الفاتحة')
+  assert.equal(quran.surahName(114), 'الناس')
+})
+
 test('expired and legacy Quran page caches are purged', async () => {
   const now = Date.now()
   const page = (number, fetchedAt) => ({ page: number, version: quran.DATASET_VERSION, fetchedAt, words: [] })
