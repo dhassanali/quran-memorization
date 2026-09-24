@@ -1,42 +1,33 @@
 import assert from 'node:assert/strict'
-import { readFile } from 'node:fs/promises'
 import test from 'node:test'
-import { transform } from 'esbuild'
+import { build } from 'esbuild'
 
-const source = await readFile(new URL('../src/srs.ts', import.meta.url), 'utf8')
-const { code } = await transform(source, { loader: 'ts', format: 'esm', target: 'es2020' })
-const srs = await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`)
+const bundled = await build({ entryPoints: ['src/srs.ts'], bundle: true, platform: 'node', format: 'esm', target: 'node19', write: false })
+const srs = await import(`data:text/javascript;base64,${Buffer.from(bundled.outputFiles[0].text).toString('base64')}`)
 
-test('Again resets an Anki-style review interval to one day', () => {
-  assert.equal(srs.nextInterval(10, 1), 1)
-  assert.equal(srs.nextInterval(10, 0), 1)
+test('word errors map to ratings at exact percentage boundaries', () => {
+  assert.equal(srs.ratingForErrors(0, 20), 4)
+  assert.equal(srs.ratingForErrors(1, 20), 3)
+  assert.equal(srs.ratingForErrors(2, 20), 2)
+  assert.equal(srs.ratingForErrors(3, 20), 1)
+  assert.equal(srs.ratingForErrors(1, 19), 2)
+  assert.throws(() => srs.ratingForErrors(21, 20))
+  assert.throws(() => srs.ratingForErrors(0, 0))
 })
 
-test('Hard, Good, and Easy use progressively longer Anki-style intervals', () => {
-  assert.equal(srs.nextInterval(2, 2), 2)
-  assert.equal(srs.nextInterval(2, 3), 5)
-  assert.equal(srs.nextInterval(2, 4), 7)
+test('new and legacy pages become FSRS cards on actual review', () => {
+  const now = new Date('2025-02-01T12:00:00Z')
+  const legacy = { page: 1, addedAt: '2024-01-01', dueDate: '2025-02-01', interval: 45, repetitions: 8, easeFactor: 2.5 }
+  const first = srs.reviewPage(legacy, 0, 20, now)
+  assert.equal(first.rating, 4)
+  assert.equal(first.card.reps, 1)
+  assert.ok(first.dueDate > legacy.dueDate)
+  const repeated = srs.reviewPage({ ...legacy, card: JSON.parse(JSON.stringify(first.card)) }, 3, 20, new Date('2025-02-10T12:00:00Z'))
+  assert.equal(repeated.rating, 1)
+  assert.equal(repeated.card.reps, 2)
 })
 
-test('ease factor changes future Good intervals and never drops below one day', () => {
-  assert.equal(srs.nextInterval(4, 3, 1.5), 6)
-  assert.equal(srs.nextInterval(0, 3), 3)
-  assert.equal(srs.nextInterval(-4, 4), 3)
-})
-
-test('scheduleReview adjusts ease and tracks lapses independently per page', () => {
-  assert.deepEqual(srs.scheduleReview(10, 1, 2.5, 2), { interval: 1, easeFactor: 2.3, lapses: 3 })
-  assert.deepEqual(srs.scheduleReview(10, 2, 1.3, 0), { interval: 12, easeFactor: 1.3, lapses: 0 })
-  assert.deepEqual(srs.scheduleReview(10, 4, 2.5, 0), { interval: 33, easeFactor: 2.65, lapses: 0 })
-})
-
-test('addDays returns the expected calendar date across a daylight-saving transition', () => {
-  assert.equal(srs.addDays('2024-03-09', 1), '2024-03-10')
-  assert.equal(srs.addDays('2024-03-10', 1), '2024-03-11')
-  assert.equal(srs.addDays('2024-12-31', 1), '2025-01-01')
-})
-
-test('localDate formats a date using its local calendar day', () => {
-  assert.equal(srs.localDate(new Date('2024-01-01T04:30:00Z')), '2023-12-31')
-  assert.equal(srs.localDate(new Date('2024-06-01T16:30:00Z')), '2024-06-01')
+test('localDate follows the active local calendar day', () => {
+  assert.equal(srs.localDate(new Date('2024-03-10T04:30:00Z')), '2024-03-09')
+  assert.equal(srs.localDate(new Date('2024-03-10T07:30:00Z')), '2024-03-10')
 })

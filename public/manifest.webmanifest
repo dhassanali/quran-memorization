@@ -1,7 +1,7 @@
 {
   "name": "حِفظي — رحلة الحفظ",
   "short_name": "حِفظي",
-  "description": "رفيق لحفظ القرآن ومراجعة الصفحات دون اتصال بالإنترنت.",
+  "description": "رفيق لحفظ القرآن ومراجعة الصفحات، مع إتاحة مؤقتة دون اتصال للصفحات المحمّلة.",
   "start_url": "/quran-memorization/",
   "scope": "/quran-memorization/",
   "display": "standalone",
