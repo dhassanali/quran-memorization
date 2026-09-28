@@ -103,7 +103,14 @@ function PageReview({ item, language, busy, onFinish, onError }: { item: Memoriz
       const preferred = Math.min(32, Math.max(20, width / 20))
       paper.style.setProperty('--mushaf-font-size', `${preferred}px`)
       const lines = paper.querySelectorAll<HTMLElement>('.mushaf-line')
-      const ratio = Math.max(1, ...Array.from(lines, line => line.scrollWidth / line.clientWidth))
+      const ratio = Math.max(1, ...Array.from(lines, line => {
+        const lineRect = line.getBoundingClientRect()
+        const wordRects = Array.from(line.children, word => word.getBoundingClientRect())
+        if (!lineRect.width || !wordRects.length) return 1
+        const contentLeft = Math.min(...wordRects.map(rect => rect.left))
+        const contentRight = Math.max(...wordRects.map(rect => rect.right))
+        return (contentRight - contentLeft) / lineRect.width
+      }))
       paper.style.setProperty('--mushaf-font-size', `${preferred / ratio * 0.98}px`)
     }
     const observer = new ResizeObserver(() => {
@@ -113,7 +120,8 @@ function PageReview({ item, language, busy, onFinish, onError }: { item: Memoriz
     observer.observe(paper)
     fitLines()
     void document.fonts.ready.then(fitLines)
-    return () => { active = false; observer.disconnect() }
+    document.fonts.addEventListener('loadingdone', fitLines)
+    return () => { active = false; observer.disconnect(); document.fonts.removeEventListener('loadingdone', fitLines) }
   }, [content])
   const toggle = (id: string) => { if (busy || submittingRef.current) return; const next = markedRef.current.includes(id) ? markedRef.current.filter(x => x !== id) : [...markedRef.current, id]; markedRef.current = next; setMarks(next); saveChain.current = saveChain.current.catch(() => undefined).then(() => db.drafts.put({ page: item.page, wordIds: next, updatedAt: new Date().toISOString() })).then(() => undefined); void saveChain.current.catch(() => onError('Could not save review draft')) }
   const finish = async () => { if (!content || busy || submittingRef.current) return; submittingRef.current = true; setSubmitting(true); try { await saveChain.current; await onFinish(item, content, markedRef.current); markedRef.current = []; setMarks([]) } catch (error) { onError(error instanceof Error ? error.message : 'Could not save review') } finally { submittingRef.current = false; setSubmitting(false) } }
