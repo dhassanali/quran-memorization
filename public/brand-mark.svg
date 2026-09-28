@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-labelledby="title desc">
+  <title id="title">شعار صاحب القران</title>
+  <desc id="desc">مصحف مفتوح داخل ختم أخضر وذهبي</desc>
+  <defs>
+    <linearGradient id="seal" x1="18" y1="10" x2="78" y2="86" gradientUnits="userSpaceOnUse"><stop stop-color="#245f52"/><stop offset="1" stop-color="#123c34"/></linearGradient>
+    <linearGradient id="gold" x1="28" y1="27" x2="68" y2="72" gradientUnits="userSpaceOnUse"><stop stop-color="#f4df9d"/><stop offset="1" stop-color="#c59a3b"/></linearGradient>
+  </defs>
+  <circle cx="48" cy="48" r="45" fill="url(#seal)"/>
+  <circle cx="48" cy="48" r="39.5" fill="none" stroke="#dfbd69" stroke-width="1.5"/>
+  <path d="M48 18l2.2 4.5 4.8.7-3.5 3.4.8 4.8-4.3-2.3-4.3 2.3.8-4.8-3.5-3.4 4.8-.7z" fill="url(#gold)"/>
+  <path d="M24 34.5c8.7-3.2 16.7-1.1 24 5.4 7.3-6.5 15.3-8.6 24-5.4v31.8c-8.7-2.8-16.7-.7-24 5.7-7.3-6.4-15.3-8.5-24-5.7z" fill="#fffdf5" stroke="url(#gold)" stroke-width="2.2" stroke-linejoin="round"/>
+  <path d="M48 40v32M29.5 42c5.7-.9 10.4.4 14.3 3.6M29.5 49.5c5.7-.9 10.4.4 14.3 3.6M29.5 57c5.7-.9 10.4.4 14.3 3.6M66.5 42c-5.7-.9-10.4.4-14.3 3.6M66.5 49.5c-5.7-.9-10.4.4-14.3 3.6M66.5 57c-5.7-.9-10.4.4-14.3 3.6" fill="none" stroke="#2f6256" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M45.3 39.1L48 40l2.7-.9V59L48 62l-2.7-3z" fill="#d5aa50"/>
+</svg>
