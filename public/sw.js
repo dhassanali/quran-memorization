@@ -1,4 +1,4 @@
-const CACHE = 'hifz-journey-shell-v3'
+const CACHE = 'hifz-journey-shell-v4'
 const BASE = new URL('./', self.location.href)
 const INDEX = new URL('index.html', BASE)
 

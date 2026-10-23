@@ -19,6 +19,7 @@ export interface Setting {
 }
 
 export interface ReviewDraft { page: number; wordIds: string[]; updatedAt: string }
+export interface Bookmark { page: number; savedAt: string }
 export interface ReviewHistory {
   id: string
   page: number
@@ -38,10 +39,12 @@ const db = new Dexie('hifz-journey') as Dexie & {
   pages: EntityTable<MemorizedPage, 'page'>
   settings: EntityTable<Setting, 'key'>
   drafts: EntityTable<ReviewDraft, 'page'>
+  bookmarks: EntityTable<Bookmark, 'page'>
   history: EntityTable<ReviewHistory, 'id'>
   quranPages: EntityTable<QuranPage, 'page'>
 }
 
 db.version(1).stores({ pages: 'page, dueDate', settings: 'key' })
 db.version(2).stores({ pages: 'page, dueDate', settings: 'key', drafts: 'page', history: 'id, page, reviewedAt', quranPages: 'page' })
+db.version(3).stores({ pages: 'page, dueDate', settings: 'key', drafts: 'page', bookmarks: 'page, savedAt', history: 'id, page, reviewedAt', quranPages: 'page' })
 export default db
